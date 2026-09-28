@@ -2,14 +2,16 @@ import os
 import discord
 from discord.ext import commands
 from google import genai
+from google.genai import types
 from flask import Flask
 from threading import Thread
+from collections import deque
 
 # 1. 免費雲端防休眠網頁
 app = Flask('')
 @app.route('/')
 def home():
-    return "Qui'sartuštaj is watching you."
+    return "Qui'sartuštaj is watching you with advanced wisdom."
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -24,7 +26,9 @@ DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
 ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 定義奎薩圖什塔的內建人設（System Instruction）
+# 記憶儲存字典
+channel_memories = {}
+
 CHARACTER_PROMPT = """
 你現在必須完全角色扮演《明日方舟》中的人物：奎薩圖什塔 (Qui'sartuštaj)。
 你目前的身份與設定如下：
@@ -43,7 +47,7 @@ CHARACTER_PROMPT = """
 
 @bot.event
 async def on_ready():
-    print(f'成功登入赦罪師領袖：{bot.user}')
+    print(f'成功登入全新升級 Pro 版的赦罪師領袖：{bot.user}')
 
 @bot.event
 async def on_message(message):
@@ -59,24 +63,42 @@ async def on_message(message):
             return
 
         async with message.channel.typing():
+            channel_id = message.channel.id
+            
+            if channel_id not in channel_memories:
+                channel_memories[channel_id] = deque(maxlen=10)
+                
+            history_queue = channel_memories[channel_id]
+            
+            history_queue.append(
+                types.Content(role="user", parts=[types.Part.from_text(text=clean_prompt)])
+            )
+
             try:
-                # 這裡使用相容人設的 gemini-2.5-flash，反應速度最快
+                # 核心更換：這裡已經切換成更聰明的 gemini-2.5-pro 模型
                 response = ai_client.models.generate_content(
                     model='gemini-2.5-pro',
-                    contents=clean_prompt,
+                    contents=list(history_queue),
                     config={
                         'system_instruction': CHARACTER_PROMPT,
-                        'temperature': 0.6  # 稍微降低隨機性，讓語氣更沉穩冷酷
+                        'temperature': 0.65 # 稍微拉高一點點發揮空間，讓 Pro 模型講話更有哲理深度
                     }
                 )
                 
                 reply_text = response.text
                 if len(reply_text) > 1900:
                     reply_text = reply_text[:1900] + "..."
+                
+                history_queue.append(
+                    types.Content(role="model", parts=[types.Part.from_text(text=reply_text)])
+                )
                     
                 await message.reply(reply_text)
+                
             except Exception as e:
                 print(f"錯誤：{e}")
+                if history_queue:
+                    history_queue.pop()
                 await message.reply("命運的絲線偶有交錯……此處的迴響暫時被切斷了。")
 
     await bot.process_commands(message)
