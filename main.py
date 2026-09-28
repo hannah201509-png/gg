@@ -62,7 +62,7 @@ async def on_message(message):
             try:
                 # 這裡使用相容人設的 gemini-2.5-flash，反應速度最快
                 response = ai_client.models.generate_content(
-                    model='gemini-2.5-flash',
+                    model='gemini-2.5-pro',
                     contents=clean_prompt,
                     config={
                         'system_instruction': CHARACTER_PROMPT,
