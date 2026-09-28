@@ -11,12 +11,12 @@ from collections import deque
 app = Flask('')
 @app.route('/')
 def home():
-    return "Qui'sartuštaj is watching you with advanced wisdom."
+    return "Qui'sartuštaj is watching you with stable connection."
 
 def run():
     app.run(host='0.0.0.0', port=8080)
 
-# 2. 初始化 Discord 機器人與 Gemini API
+# 2. 初始化 Discord 機器人與 Gemini 非同步 API
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -24,7 +24,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-ai_client = genai.Client(api_key=GEMINI_API_KEY)
+# 這裡使用 .aio 啟用非同步客戶端，防止 API 呼叫卡死 Discord 執行緒
+ai_client = genai.Client(api_key=GEMINI_API_KEY).aio
 
 # 記憶儲存字典
 channel_memories = {}
@@ -47,7 +48,7 @@ CHARACTER_PROMPT = """
 
 @bot.event
 async def on_ready():
-    print(f'成功登入全新升級 Pro 版的赦罪師領袖：{bot.user}')
+    print(f'成功登入全新非同步穩定版的赦罪師領袖：{bot.user}')
 
 @bot.event
 async def on_message(message):
@@ -75,13 +76,13 @@ async def on_message(message):
             )
 
             try:
-                # 核心更換：這裡已經切換成更聰明的 gemini-2.5-pro 模型
-                response = ai_client.models.generate_content(
+                # 這裡使用 await 非同步呼叫，並使用效能強大、文筆深邃的 gemini-2.5-pro 模型
+                response = await ai_client.models.generate_content(
                     model='gemini-2.5-pro',
                     contents=list(history_queue),
                     config={
                         'system_instruction': CHARACTER_PROMPT,
-                        'temperature': 0.65 # 稍微拉高一點點發揮空間，讓 Pro 模型講話更有哲理深度
+                        'temperature': 0.65
                     }
                 )
                 
@@ -96,7 +97,7 @@ async def on_message(message):
                 await message.reply(reply_text)
                 
             except Exception as e:
-                print(f"錯誤：{e}")
+                print(f"錯誤日誌：{e}")
                 if history_queue:
                     history_queue.pop()
                 await message.reply("命運的絲線偶有交錯……此處的迴響暫時被切斷了。")
