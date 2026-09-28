@@ -81,4 +81,4 @@ async def on_message(message):
 if __name__ == "__main__":
     t = Thread(target=run)
     t.start()
-    bot.run('MTU1MzgzMDU2NTYyNTU5ODEzNQ.Gca85f.sPwMd3WobHzyrHfwovq5lcmSZPgtnWEJJAyE0s')
+    bot.run("DISCORD_TOKEN")
