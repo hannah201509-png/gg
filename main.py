@@ -4,18 +4,17 @@ from discord.ext import commands
 from google import genai
 from flask import Flask
 from threading import Thread
-import asyncio
 
 # 1. 免費雲端防休眠網頁
 app = Flask('')
 @app.route('/')
 def home():
-    return "Qui'sartuštaj is observing the fate."
+    return "Qui'sartuštaj is watching you with modern official chat logic."
 
 def run():
     app.run(host='0.0.0.0', port=8080)
 
-# 2. 初始化 Discord 機器人
+# 2. 初始化 Discord 機器人與 Gemini API
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
@@ -23,8 +22,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-# 使用官方推薦的非同步客戶端
+# 使用非同步客戶端
 ai_client = genai.Client(api_key=GEMINI_API_KEY).aio
+
+# 這裡改用字典儲存每個頻道的專屬 Chat 物件
 channel_chats = {}
 
 CHARACTER_PROMPT = """
@@ -45,18 +46,15 @@ CHARACTER_PROMPT = """
 
 @bot.event
 async def on_ready():
-    print(f'成功登入全新終極修復版：{bot.user}')
+    print(f'成功登入全新官方規範版的赦罪師領袖：{bot.user}')
 
 @bot.event
 async def on_message(message):
     if message.author == bot.user:
         return
 
-    # 判斷是否被標記或收到私訊
-    is_mentioned = bot.user.mentioned_in(message)
-    is_dm = isinstance(message.channel, discord.DMChannel)
-
-    if is_mentioned or is_dm:
+    # 當被 @標記 或者收到私訊時觸發
+    if bot.user.mentioned_in(message) or isinstance(message.channel, discord.DMChannel):
         clean_prompt = message.content.replace(f'<@{bot.user.id}>', '').strip()
         
         if not clean_prompt:
@@ -66,44 +64,36 @@ async def on_message(message):
         async with message.channel.typing():
             channel_id = message.channel.id
             
-            # 初始化官方 Chat 物件
+            # 如果該頻道還沒有建立過官方 Chat 物件，則當場初始化一個
             if channel_id not in channel_chats:
-                try:
-                    channel_chats[channel_id] = ai_client.chats.create(
-                        model='gemini-2.5-pro',
-                        config={
-                            'system_instruction': CHARACTER_PROMPT,
-                            'temperature': 0.65
-                        }
-                    )
-                except Exception as chat_err:
-                    print(f"初始化對話失敗: {chat_err}")
-                    await message.reply("命運的起點發生了偏折。")
-                    return
+                channel_chats[channel_id] = ai_client.chats.create(
+                    model='gemini-2.5-pro',
+                    config={
+                        'system_instruction': CHARACTER_PROMPT,
+                        'temperature': 0.65
+                    }
+                )
             
+            # 取得該頻道的對話實例
             chat = channel_chats[channel_id]
 
             try:
-                # 呼叫 API
+                # 使用官方極力推薦的非同步 send_message，完美避開警告與超時問題
                 response = await chat.send_message(clean_prompt)
-                reply_text = response.text
                 
+                reply_text = response.text
                 if len(reply_text) > 1900:
                     reply_text = reply_text[:1900] + "..."
                     
                 await message.reply(reply_text)
                 
             except Exception as e:
-                print(f"Gemini API 呼叫失敗：{e}")
+                print(f"錯誤日誌：{e}")
                 await message.reply("命運的絲線偶有交錯……此處的迴響暫時被切斷了。")
 
-    # 確保繼承其餘指令功能（加入關鍵的 await）
     await bot.process_commands(message)
 
 if __name__ == "__main__":
     t = Thread(target=run)
     t.start()
-    try:
-        bot.run(DISCORD_TOKEN)
-    except Exception as login_err:
-        print(f"Discord 登入崩潰: {login_err}")
+    bot.run(DISCORD_TOKEN)
