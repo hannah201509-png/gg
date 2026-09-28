@@ -81,4 +81,4 @@ async def on_message(message):
 if __name__ == "__main__":
     t = Thread(target=run)
     t.start()
-    bot.run(MTU1MzgzMDU2NTYyNTU5ODEzNQ.GE0DSu.w1XjF406kG6hGsPF_ORoV5wLZI_hpEmYxxakX8)
+    bot.run('MTU1MzgzMDU2NTYyNTU5ODEzNQ.GE0DSu.w1XjF406kG6hGsPF_ORoV5wLZI_hpEmYxxakX8')
