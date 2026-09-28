@@ -9,7 +9,7 @@ from threading import Thread
 app = Flask('')
 @app.route('/')
 def home():
-    return "Qui'sartuštaj is watching you with modern official chat logic."
+    return "Qui'sartuštaj is watching you."
 
 def run():
     app.run(host='0.0.0.0', port=8080)
@@ -22,12 +22,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-# 使用非同步客戶端
-ai_client = genai.Client(api_key=GEMINI_API_KEY).aio
+ai_client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 這裡改用字典儲存每個頻道的專屬 Chat 物件
-channel_chats = {}
-
+# 定義奎薩圖什塔的內建人設（System Instruction）
 CHARACTER_PROMPT = """
 你現在必須完全角色扮演《明日方舟》中的人物：奎薩圖什塔 (Qui'sartuštaj)。
 你目前的身份與設定如下：
@@ -39,14 +36,11 @@ CHARACTER_PROMPT = """
 3. 經常在對話中提及「命運」、「黑冠」、「血脈」、「苦難」、「軀殼」與「薩卡茲的未來」。
 4. 自稱一律用「我」，稱呼他人一律用「你」或「你們」（絕不使用「本座」、「孤」等稱呼）。
 5. 必須完全使用「繁體中文（台灣）」進行回覆，且語調沒有任何情緒起伏。
-
-範例語錄供你參考：
-「這具軀殼的衰亡，不過是迎來下一次新生的序曲……我親愛的姐姐，妳還要逃避妳的血脈到什麼時候？」
 """
 
 @bot.event
 async def on_ready():
-    print(f'成功登入全新官方規範版的赦罪師領袖：{bot.user}')
+    print(f'成功登入赦罪師領袖：{bot.user}')
 
 @bot.event
 async def on_message(message):
@@ -62,33 +56,24 @@ async def on_message(message):
             return
 
         async with message.channel.typing():
-            channel_id = message.channel.id
-            
-            # 如果該頻道還沒有建立過官方 Chat 物件，則當場初始化一個
-            if channel_id not in channel_chats:
-                channel_chats[channel_id] = ai_client.chats.create(
-                    model='gemini-2.5-pro',
+            try:
+                # 這裡使用相容人設的 gemini-2.5-flash，反應速度最快
+                response = ai_client.models.generate_content(
+                    model='gemini-2.5-flash',
+                    contents=clean_prompt,
                     config={
                         'system_instruction': CHARACTER_PROMPT,
-                        'temperature': 0.65
+                        'temperature': 0.6  # 稍微降低隨機性，讓語氣更沉穩冷酷
                     }
                 )
-            
-            # 取得該頻道的對話實例
-            chat = channel_chats[channel_id]
-
-            try:
-                # 使用官方極力推薦的非同步 send_message，完美避開警告與超時問題
-                response = await chat.send_message(clean_prompt)
                 
                 reply_text = response.text
                 if len(reply_text) > 1900:
                     reply_text = reply_text[:1900] + "..."
                     
                 await message.reply(reply_text)
-                
             except Exception as e:
-                print(f"錯誤日誌：{e}")
+                print(f"錯誤：{e}")
                 await message.reply("命運的絲線偶有交錯……此處的迴響暫時被切斷了。")
 
     await bot.process_commands(message)
